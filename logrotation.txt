@@ -1,0 +1,134 @@
+######################## log rotation #####################3
+
+
+
+# For Amazon Linux / RHEL / CentOS
+
+sudo yum install logrotate -y
+
+
+
+
+
+sudo vi /etc/logrotate.d/myapp
+
+
+/var/log/myapp/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640
+    postrotate
+        systemctl reload myapp.service >/dev/null 2>&1 || true
+    endscript
+}
+
+
+
+
+sudo mkdir -p /var/log/myapp
+sudo touch /var/log/myapp/app.log
+sudo chown ec2-user:ec2-user /var/log/myapp/app.log
+
+echo "Test log entry 1" | sudo tee -a /var/log/myapp/app.log
+echo "Test log entry 2" | sudo tee -a /var/log/myapp/app.log
+
+
+sudo logrotate -d /etc/logrotate.conf
+
+sudo logrotate -f /etc/logrotate.d/myapp
+
+
+
+
+
+Log Rotation Flow for /var/log/myapp/app.log
+Initial State (Day 0)
+app.log           → contains log entries
+
+Day 1 (First Rotation)
+
+You run logrotate -f (manual) or daily cron runs.
+
+Steps:
+
+app.log is renamed → app.log.1
+
+New empty app.log is created
+
+Result:
+
+app.log           → empty (new log)
+app.log.1         → old entries from previous log
+
+Day 2 (Next Daily Rotation)
+
+logrotate runs automatically.
+
+Steps:
+
+app.log.1 → app.log.2
+
+app.log → app.log.1
+
+New empty app.log created
+
+Result:
+
+app.log           → empty
+app.log.1         → entries from Day 2
+app.log.2         → entries from Day 1
+
+Day 3
+app.log           → empty
+app.log.1         → Day 3 entries
+app.log.2         → Day 2 entries
+app.log.3         → Day 1 entries
+
+…Continuing Up to Day 7
+app.log           → Day 7 (current)
+app.log.1         → Day 7
+app.log.2         → Day 6
+app.log.3         → Day 5
+app.log.4         → Day 4
+app.log.5         → Day 3
+app.log.6         → Day 2
+app.log.7         → Day 1
+
+Day 8 (Rotation with rotate 7)
+
+Oldest log (app.log.7) is deleted.
+
+New rotation:
+
+app.log           → Day 8 (current)
+app.log.1         → Day 8
+app.log.2         → Day 7
+app.log.3         → Day 6
+app.log.4         → Day 5
+app.log.5         → Day 4
+app.log.6         → Day 3
+app.log.7         → Day 2
+
+
+work like 
+*********First in First out*********
+
+✅ This keeps always the last 7 rotations, as per rotate 7.
+
+Key Points to Remember
+
+.1 is always the most recent rotated log.
+
+.2 → second most recent, and so on up to .7.
+
+app.log is always the current active log.
+
+Deletion happens only after you exceed the rotation limit (rotate 7).
+
+Rotation timing is controlled by the OS scheduler (cron or systemd timer).
+
+
